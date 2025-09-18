@@ -1,210 +1,321 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emoji 成语猜猜乐</title>
+    <title>拼贴诗句生成器</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chosen Palette: Warm Parchment -->
-    <!-- Application Structure Plan: 该应用被设计为一个互动式的猜谜游戏。与枯燥的列表不同，它采用了一个响应式的卡片网格布局。每一张卡片代表一个成语谜题，鼓励用户逐一探索和互动。核心交互是卡片的“翻转”效果，用户点击卡片即可揭晓答案，这种方式既直观又有趣。页面顶部还设置了一个“全部显示/隐藏”的按钮，方便用户在学习和测验模式之间切换。这种以游戏为中心的设计结构，旨在将一份静态的文本内容转化为一个充满参与感的动态体验，极大地提升了内容的易消费性和娱乐性。 -->
-    <!-- Visualization & Content Choices: 报告信息（Emoji成语列表）-> 目标（创建互动猜谜游戏）-> 呈现方式（带翻转效果的响应式卡片网格）-> 交互（单击卡片翻转以显示答案，全局按钮可切换所有卡片的显示状态）-> 理由（卡片网格比长列表更具视觉吸引力和互动性；翻转动画为揭晓答案增添了趣味性和惊喜感，提升了用户参与度）-> 技术实现（使用HTML和Tailwind CSS构建布局，通过原生JavaScript控制交互逻辑和DOM操作）。 -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-            background-color: #FDF6E3; /* Warm Parchment background */
+            font-family: 'Noto Serif SC', serif;
+            /* 沿用温暖的羊皮纸背景色 */
+            background-color: #FDF6E3;
         }
-        .card {
-            perspective: 1000px;
-            transform-style: preserve-3d;
+        /* 更新后的词语卡片样式 */
+        .word-card {
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* 增加阴影 */
         }
-        .card-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.6s;
-            transform-style: preserve-3d;
+        .word-card:hover {
+            transform: translateY(-2px);
+            background-color: #F8EFE0; /* 悬停时颜色变深 */
         }
-        .card.is-flipped .card-inner {
-            transform: rotateY(180deg);
-        }
-        .card-front,
-        .card-back {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
+        .poem-display {
+            min-height: 200px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
             display: flex;
-            align-items: center;
+            flex-direction: column;
             justify-content: center;
-            border-radius: 0.75rem;
+            align-items: center;
         }
-        .card-back {
-            transform: rotateY(180deg);
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .message-box.show {
+            opacity: 1;
+        }
+        /* 更新为虚线边框的方框样式 */
+        .word-box {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 1.8em;
+            height: 1.8em;
+            border: 2px dashed #D6A44E;
+            border-radius: 0.25rem;
+            margin: 0.1em;
+            font-size: 1.5em;
+            vertical-align: middle;
+            transition: all 0.2s;
+        }
+        /* 填入文字后边框变为实线 */
+        .word-box.filled {
+            border-style: solid;
+        }
+        /* 激活状态 */
+        .word-box.active {
+            background-color: #FEF3C7;
+        }
+        .poem-placeholder {
+            text-align: center;
+            font-size: 1.5rem;
+            color: #d6a44e;
+            line-height: 1.8;
         }
     </style>
 </head>
 <body class="antialiased text-gray-800">
 
-    <div class="container mx-auto px-4 py-8 md:py-12">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl md:text-5xl font-bold text-amber-900">Emoji 成语猜猜乐</h1>
-            <p class="mt-4 text-lg text-amber-800 max-w-2xl mx-auto">
-                欢迎来到成语挑战！点击下方的 Emoji 卡片，猜猜它代表哪个成语。再次点击可以翻回去。祝你好运！
-            </p>
-            <button id="toggle-all-btn" class="mt-6 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-6 rounded-full transition-colors duration-300 shadow-md">
-                显示所有答案
-            </button>
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <header class="text-center mb-8 md:mb-12">
+            <h1 class="text-3xl sm:text-4xl font-bold text-amber-900 mb-2">拼贴诗句生成器</h1>
+            <p class="text-amber-800 text-sm sm:text-base">在左侧选择词语，在右侧创作你的诗句。</p>
         </header>
+        
+        <!-- 主布局容器：左右分栏 -->
+        <div class="flex flex-col md:flex-row gap-8">
+            <!-- 左侧：词语选择区 -->
+            <div class="md:w-1/2 flex flex-col gap-6 bg-white p-6 rounded-2xl shadow-xl">
+                <!-- 单字 -->
+                <div>
+                    <h2 class="text-xl font-bold mb-3 text-amber-800">单字</h2>
+                    <div id="single-words" class="flex flex-wrap gap-2"></div>
+                </div>
 
-        <main id="idiom-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-        </main>
+                <!-- 二字词语 -->
+                <div>
+                    <h2 class="text-xl font-bold mb-3 text-amber-800">二字词语</h2>
+                    <div id="two-words" class="flex flex-wrap gap-2"></div>
+                </div>
 
-    </div>
+                <!-- 三字词语 -->
+                <div>
+                    <h2 class="text-xl font-bold mb-3 text-amber-800">三字词语</h2>
+                    <div id="three-words" class="flex flex-wrap gap-2"></div>
+                </div>
 
-    <script>
-        const idioms = [
-            { puzzle: "🐻🈶️🍊🎋", answer: "胸有成竹" },
-            { puzzle: "🔥🌲🎵🎆", answer: "火树银花" },
-            { puzzle: "🌂🦴🐱🦌", answer: "三顾茅庐" },
-            { puzzle: "🍬💪🚧🚗", answer: "螳臂当车" },
-            { puzzle: "🍏♣️🎋🐎", answer: "青梅竹马" },
-            { puzzle: "🍃🚌👌🐲", answer: "叶公好龙" },
-            { puzzle: "🐑🚶🐯👄", answer: "羊入虎口" },
-            { puzzle: "🔪⛰️🔥🌊", answer: "刀山火海" },
-            { puzzle: "🎒🪞🍐🍌", answer: "背井离乡" },
-            { puzzle: "🍬🍬🪡🪡", answer: "堂堂正正" },
-            { puzzle: "🖐️🤐🚶🫙", answer: "守口如瓶" },
-            { puzzle: "⬅️🤔➡️🤔", answer: "左思右想" },
-            { puzzle: "🍧🍧🖐️🪦", answer: "绵绵不绝" },
-            { puzzle: "➖🀄️📖🎺", answer: "横七竖八" },
-            { puzzle: "👋🥬☺️🏊", answer: "大材小用" },
-            { puzzle: "🪞🧎‍♀️🎫🐘", answer: "金桂飘香" },
-            { puzzle: "🐦👄🤤💡", answer: "鸟语蝉鸣" },
-            { puzzle: "👄🧱🐍🧍", answer: "唇枪舌战" },
-            { puzzle: "👣👣😲❤️", answer: "步步惊心" },
-            { puzzle: "🧊🤲🧊🦶", answer: "动手动脚" },
-            { puzzle: "🍍👂🏻❌🐳", answer: "博而不精" },
-            { puzzle: "❤️🙅🏻‍♂️🔟🤲", answer: "爱不释手" },
-            { puzzle: "⚪️👩🏻👞👵🏻", answer: "白头偕老" },
-            { puzzle: "🐟👴🏻🍹💪🏻", answer: "渔翁得利" },
-            { puzzle: "1️⃣💉🚀☃️", answer: "一针见血" },
-            { puzzle: "👆🏻🍰🎈🐏", answer: "趾高气扬" },
-            { puzzle: "🐴👦🏻🍎💩", answer: "马革裹尸" },
-            { puzzle: "🌪️🌧️👰🏻👰🏻", answer: "风雨凄凄" },
-            { puzzle: "🚶🏻🐴👀🌸", answer: "走马观花" },
-            { puzzle: "1️⃣😡😮‍💨🍊", answer: "一气呵成" },
-            { puzzle: "☁️☁️🀄🎂", answer: "芸芸众生" },
-            { puzzle: "👄👄📣📣", answer: "口口声声" },
-            { puzzle: "🔭👀🌽🚣🏻", answer: "望眼欲穿" },
-            { puzzle: "✍🏻️🤲🍪✂️", answer: "携手并肩" },
-            { puzzle: "🤲🏻🤌🏻1️⃣👆🏻", answer: "首屈一指" },
-            { puzzle: "♨️🐔🆙🕺", answer: "闻鸡起舞" },
-            { puzzle: "🌕🌕🌑🌑", answer: "日日夜夜" },
-            { puzzle: "♨️♨️🌞👆🏻", answer: "蒸蒸日上" },
-            { puzzle: "👆🏻👇🏻1️⃣❤️", answer: "上下一心" },
-            { puzzle: "😍😡😮‍💨😀", answer: "喜怒哀乐" },
-            { puzzle: "👅🐴🚶🏻🈳", answer: "天马行空" },
-            { puzzle: "😭🐮🍺🍜", answer: "泪流满面" },
-            { puzzle: "👦🏻👼🏻🚌💩", answer: "人神共愤" },
-            { puzzle: "🎈🐯🤵🏻👇🏻", answer: "骑虎难下" },
-            { puzzle: "🤲🐷🧳🐰", answer: "守株待兔" },
-            { puzzle: "🧑‍🦯🤵🏻🤲🐘", answer: "盲人摸象" },
-            { puzzle: "☁️▪️🌑🎹", answer: "天方夜谭" },
-            { puzzle: "🌹👀📭❤️", answer: "眉目传情" },
-            { puzzle: "🎈👄👨🏻👅", answer: "七嘴八舌" },
-            { puzzle: "🐉🍍🍊💩", answer: "龙凤呈祥" },
-            { puzzle: "🍐🌸💰🌧️", answer: "梨花带雨" },
-            { puzzle: "🐉🐴⭐👼🏻", answer: "龙马精神" },
-            { puzzle: "👩🏻💰🐔🐔", answer: "人才济济" },
-            { puzzle: "🍚👊🏻➕💅🏻", answer: "十全十美" },
-            { puzzle: "🍜🈚👩🏻😍", answer: "面无人色" },
-            { puzzle: "🏡🏡🏠🏠", answer: "家家户户" },
-            { puzzle: "🌸👌🏻🌙🌕", answer: "花好月圆" },
-            { puzzle: "👣🐰👌🏻😭", answer: "狡兔三窟" },
-            { puzzle: "💊👄👵🏻❤️", answer: "苦口婆心" },
-            { puzzle: "🦊🏠🐯💢", answer: "狐假虎威" },
-            { puzzle: "👄🐝👨🏻🚀", answer: "口蜜腹剑" },
-            { puzzle: "1️⃣🚀⏰❤️", answer: "一见钟情" },
-            { puzzle: "🔔🔔⭐⭐", answer: "零零星星" },
-            { puzzle: "1️⃣🔫✌🏻🉐", answer: "一举两得" },
-            { puzzle: "⭐🍍♟️🖐🏻", answer: "星罗棋布" },
-            { puzzle: "👄🍅❤️🙅🏻‍♂️", answer: "口是心非" },
-            { puzzle: "🔑🚪👀⛰️", answer: "开门见山" },
-            { puzzle: "👗🐉🙅🏻‍♂️🤲", answer: "群龙无首" },
-            { puzzle: "🕓🌊☎🏠", answer: "四海为家" },
-            { puzzle: "🔔🐺🈵👀", answer: "琳琅满目" },
-            { puzzle: "❤️❤️🐘🥇", answer: "心心相印" },
-            { puzzle: "👻👻👻👻", answer: "魑魅魍魉" },
-            { puzzle: "🌊😭🪦🏀", answer: "海枯石烂" },
-            { puzzle: "🐔⭐🏌️💡", answer: "吉星高照" },
-            { puzzle: "👩🏻🐏🐴⛵", answer: "人仰马翻" },
-            { puzzle: "🤵🏻🤵🏻🤲🛣", answer: "头头是道" },
-            { puzzle: "🍸🍸🐢👔", answer: "九九归一" },
-            { puzzle: "🚑🎀🚑💪🏻", answer: "再接再厉" },
-            { puzzle: "💢🔥🀄🔥", answer: "怒火中烧" },
-            { puzzle: "🍻🥚🐘📸", answer: "肝胆相照" },
-            { puzzle: "1️⃣👦🏻💰🥇", answer: "一字千金" },
-            { puzzle: "🐶🐔🪂💪🏻", answer: "狗急跳墙" },
-            { puzzle: "🌞👩🏻‍🎓🚿⛰️", answer: "日薄西山" },
-            { puzzle: "1️⃣💉🟡🧊", answer: "一枕黄粱" },
-            { puzzle: "☀️🏔🍽🔟", answer: "泰山磐石" },
-            { puzzle: "🐏🐏🉐️1️⃣", answer: "洋洋得意" },
-            { puzzle: "👨👩👴👶", answer: "男女老少" },
-            { puzzle: "🌸🌸👴👦", answer: "花花公子" },
-            { puzzle: "💅🀄🙅👣", answer: "美中不足" },
-            { puzzle: "👕🚀⏰💝", answer: "一见钟情" },
-            { puzzle: "💁🍜🍑🌸", answer: "人面桃花" },
-            { puzzle: "🌞🌞🌃🌃", answer: "日日夜夜" },
-            { puzzle: "❤️🤔🍅🍊", answer: "心想事成" },
-            { puzzle: "😍⬆🌹🔥", answer: "喜上眉梢" },
-            { puzzle: "🖐⬆✨🐷", answer: "掌上明珠" },
-            { puzzle: "👱👱📺🛣", answer: "头头是道" },
-            { puzzle: "💗💗🐘🏅", answer: "欣欣向荣" },
-            { puzzle: "🚶🐎👑🌸", answer: "走马观花" },
-            { puzzle: "👗🐲🈚🖐", answer: "群龙无首" }
-        ];
+                <!-- 四字词语 -->
+                <div>
+                    <h2 class="text-xl font-bold mb-3 text-amber-800">四字词语</h2>
+                    <div id="four-words" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
 
-        const grid = document.getElementById('idiom-grid');
-        const toggleBtn = document.getElementById('toggle-all-btn');
-        let allVisible = false;
+            <!-- 右侧：诗句创作区 -->
+            <div class="md:w-1/2 flex flex-col gap-6 bg-white p-6 rounded-2xl shadow-xl">
+                <!-- 诗名创作 -->
+                <div class="flex flex-col items-center mb-4">
+                    <label for="poem-title" class="text-xl font-bold text-amber-900 mb-2">诗名</label>
+                    <input type="text" id="poem-title" class="text-center text-lg font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 w-full max-w-sm focus:outline-none focus:border-amber-400" placeholder="点击这里输入诗名">
+                </div>
 
-        idioms.forEach(item => {
-            const card = document.createElement('div');
-            card.className = 'card h-28 md:h-32 bg-transparent cursor-pointer group';
-            
-            card.innerHTML = `
-                <div class="card-inner shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <div class="card-front bg-white p-4 text-3xl md:text-4xl">
-                        ${item.puzzle}
-                    </div>
-                    <div class="card-back bg-amber-500 p-2 text-white text-2xl md:text-3xl font-semibold">
-                        ${item.answer}
+                <!-- 诗体选择 -->
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-bold text-amber-900 mb-2">选择诗体</h2>
+                    <div class="flex flex-wrap justify-center gap-2 sm:gap-4">
+                        <button onclick="selectFormat('五言')" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 transition-colors">五言</button>
+                        <button onclick="selectFormat('七言')" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 transition-colors">七言</button>
+                        <button onclick="selectFormat('江城子')" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 transition-colors">江城子</button>
+                        <button onclick="selectFormat('西江月')" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 transition-colors">西江月</button>
                     </div>
                 </div>
-            `;
 
-            card.addEventListener('click', () => {
-                card.classList.toggle('is-flipped');
-            });
+                <h2 class="text-xl font-bold text-amber-900">我的诗句</h2>
+                <!-- 诗句显示区 -->
+                <div id="poem-area" class="bg-amber-50 border border-amber-200 rounded-lg p-4 poem-display text-lg text-amber-800">
+                    <p class="poem-placeholder text-center text-gray-500">静待佳句，一字一言</p>
+                </div>
 
-            grid.appendChild(card);
-        });
+                <!-- 标点和操作按钮 -->
+                <div class="flex flex-wrap justify-center gap-2 sm:gap-4 mb-4">
+                    <button onclick="deleteLast()" class="flex-1 min-w-[80px] px-4 py-2 bg-rose-600 text-white font-semibold rounded-lg shadow-md hover:bg-rose-700 transition-colors">删除</button>
+                    <button onclick="clearPoem()" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-700 text-white font-semibold rounded-lg shadow-md hover:bg-amber-800 transition-colors">清空</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        toggleBtn.addEventListener('click', () => {
-            allVisible = !allVisible;
-            const cards = document.querySelectorAll('.card');
-            cards.forEach(card => {
-                if (allVisible) {
-                    card.classList.add('is-flipped');
-                } else {
-                    card.classList.remove('is-flipped');
+    <!-- 消息提示框 -->
+    <div id="message-box" class="message-box bg-gray-900 text-white px-4 py-2 rounded-lg text-sm shadow-lg"></div>
+
+    <script>
+        // 词语数据
+        const words = {
+            single: ["春", "夏", "秋", "冬", "山", "水", "风", "月", "日", "星", "雨", "雪", "花", "草", "树", "竹", "云", "霞", "光", "影", "梦", "诗", "酒", "茶", "心", "情", "愁", "思", "意", "人", "世", "间", "年", "岁", "时", "空"],
+            two: ["青山", "绿水", "清风", "明月", "晓风", "残月", "落日", "孤烟", "长河", "大漠", "江雪", "梅花", "竹影", "松涛", "飞鸟", "远山", "古寺", "故人", "红尘", "人生", "岁月", "往事", "相思", "离愁", "夜雨", "晨光", "微风", "细雨", "柳岸", "渔舟", "归舟", "寒鸦", "夕阳", "白云", "幽径", "石阶", "高楼", "小桥", "流水", "落花", "听风", "闻香", "看雪", "问月", "独酌", "醉卧", "闲愁", "轻狂"],
+            three: ["春风拂", "细雨湿", "明月照", "落日沉", "江上行", "山中客", "风雪夜", "花影动", "竹林深", "梦中人", "故乡情", "少年游", "白发翁", "一壶酒", "一杯茶", "半生缘", "三千尺", "九重天", "孤雁飞", "独钓客", "月下影", "风入松", "水云间", "天涯路", "相思曲", "一叶舟", "无边落", "万里行", "千秋月"],
+            four: ["青山依旧", "流水无声", "风华正茂", "岁月如歌", "世事如棋", "万家灯火", "烟雨江南", "长夜漫漫", "春风十里", "一叶扁舟", "千山暮雪", "孤帆远影", "白云苍狗", "物是人非", "心事重重", "举杯邀月", "对酒当歌", "天涯咫尺", "相逢一笑", "往事随风", "此情可待", "人间烟火", "高山流水", "海阔天空", "大梦一场", "人生几何", "愁绪万千", "夜色阑珊", "花开花落", "朝夕相处", "浮生若梦", "旧时月色"]
+        };
+
+        const poemArea = document.getElementById('poem-area');
+        const messageBox = document.getElementById('message-box');
+
+        let poemStructure = []; // 存储诗歌结构的二维数组，如 [[5], [5], [5], [5]]
+        let currentLine = 0;
+        let currentChar = 0;
+
+        // 诗体格式定义
+        const poemFormats = {
+            '五言': [5, 5, 5, 5],
+            '七言': [7, 7, 7, 7],
+            '江城子': [7, 6, 7, 6, 7, 6, 6, 7],
+            '西江月': [7, 7, 7, 6, 7, 7, 7, 6]
+        };
+
+        // 渲染词语按钮
+        function renderWords() {
+            for (const key in words) {
+                const container = document.getElementById(`${key}-words`);
+                if (container) {
+                    words[key].forEach(word => {
+                        const button = document.createElement('button');
+                        button.textContent = word;
+                        button.className = "word-card px-3 py-1 bg-amber-100 rounded-md shadow-md hover:bg-amber-200 transition-colors";
+                        button.onclick = () => addWord(word);
+                        container.appendChild(button);
+                    });
                 }
-            });
-            toggleBtn.textContent = allVisible ? '隐藏所有答案' : '显示所有答案';
-        });
+            }
+        }
 
+        // 选择诗体格式
+        function selectFormat(formatName) {
+            const format = poemFormats[formatName];
+            if (!format) {
+                showMessage("选择的诗体格式无效！");
+                return;
+            }
+
+            poemStructure = format.map(len => new Array(len).fill(''));
+            currentLine = 0;
+            currentChar = 0;
+            renderPoemBoxes();
+        }
+
+        // 渲染诗歌虚线框
+        function renderPoemBoxes() {
+            poemArea.innerHTML = '';
+            poemArea.style.display = 'block';
+            poemStructure.forEach((line, lineIndex) => {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'flex flex-wrap justify-center sm:justify-start';
+                line.forEach((char, charIndex) => {
+                    const box = document.createElement('span');
+                    box.className = `word-box ${char ? 'filled' : ''}`;
+                    box.textContent = char;
+                    if (lineIndex === currentLine && charIndex === currentChar) {
+                        box.classList.add('active');
+                    }
+                    lineDiv.appendChild(box);
+                });
+                poemArea.appendChild(lineDiv);
+            });
+        }
+
+        // 找到下一个可以填入的虚线框
+        function findNextEmptyBox() {
+            for (let i = currentLine; i < poemStructure.length; i++) {
+                for (let j = 0; j < poemStructure[i].length; j++) {
+                    if (i === currentLine && j < currentChar) continue;
+                    if (!poemStructure[i][j]) {
+                        return { line: i, char: j };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 找到上一个已填入的虚线框
+        function findLastFilledBox() {
+            for (let i = poemStructure.length - 1; i >= 0; i--) {
+                for (let j = poemStructure[i].length - 1; j >= 0; j--) {
+                    if (poemStructure[i][j]) {
+                        return { line: i, char: j };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 添加词语到诗句
+        function addWord(word) {
+            if (poemStructure.length === 0) {
+                showMessage("请先选择一个诗体格式！");
+                return;
+            }
+
+            const filled = findNextEmptyBox();
+
+            if (!filled) {
+                showMessage("诗歌已写满！");
+                return;
+            }
+
+            // 循环填入词语的每个字
+            for (let i = 0; i < word.length; i++) {
+                const nextPos = findNextEmptyBox();
+                if (!nextPos) {
+                    showMessage("诗歌已写满！");
+                    break;
+                }
+                poemStructure[nextPos.line][nextPos.char] = word[i];
+                currentLine = nextPos.line;
+                currentChar = nextPos.char + 1;
+            }
+
+            renderPoemBoxes();
+        }
+        
+        // 删除最后一个字
+        function deleteLast() {
+            if (poemStructure.length === 0) {
+                return;
+            }
+
+            const lastFilled = findLastFilledBox();
+            
+            if (lastFilled) {
+                poemStructure[lastFilled.line][lastFilled.char] = '';
+                currentLine = lastFilled.line;
+                currentChar = lastFilled.char;
+                renderPoemBoxes();
+            }
+        }
+
+        // 清空诗句
+        function clearPoem() {
+            if (poemStructure.length === 0) {
+                return;
+            }
+            poemStructure = poemStructure.map(line => line.map(() => ''));
+            currentLine = 0;
+            currentChar = 0;
+            renderPoemBoxes();
+        }
+
+        // 显示消息提示
+        function showMessage(message) {
+            messageBox.textContent = message;
+            messageBox.classList.add('show');
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 2000);
+        }
+
+        // 初始化
+        window.onload = function() {
+            renderWords();
+        };
     </script>
 </body>
 </html>
