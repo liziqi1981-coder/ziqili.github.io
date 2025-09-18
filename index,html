@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拼贴诗句生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
+        body {
+            font-family: 'Noto Serif SC', serif;
+            /* 沿用温暖的羊皮纸背景色 */
+            background-color: #FDF6E3;
+        }
+        /* 更新后的词语卡片样式 */
+        .word-card {
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* 增加阴影 */
+        }
+        .word-card:hover {
+            transform: translateY(-2px);
+            background-color: #F8EFE0; /* 悬停时颜色变深 */
+        }
+        .poem-display {
+            min-height: 200px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .message-box.show {
+            opacity: 1;
+        }
+        /* 更新为虚线边框的方框样式 */
+        .word-box {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 1.8em;
+            height: 1.8em;
+            border: 2px dashed #D6A44E;
+            border-radius: 0.25rem;
+            margin: 0.1em;
+            font-size: 1.5em;
+            vertical-align: middle;
+            transition: all 0.2s;
+        }
+        /* 填入文字后边框变为实线 */
+        .word-box.filled {
+            border-style: solid;
+        }
+        /* 激活状态 */
+        .word-box.active {
+            background-color: #FEF3C7;
+        }
+        .poem-placeholder {
+            text-align: center;
+            font-size: 1.5rem;
+            color: #d6a44e;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <header class="text-center mb-8 md:mb-12">
+            <h1 class="text-3xl sm:text-4xl font-bold text-amber-900 mb-2">拼贴诗句生成器</h1>
+            <p class="text-amber-800 text-sm sm:text-base">在左侧选择词语，在右侧创作你的诗句。</p>
+        </header>
+        
+        <!-- 主布局容器：左右分栏 -->
+        <div class="flex flex-col md:flex-row gap-8">
+            <!-- 左侧：词语选择区 -->
+            <div class="md:w-1/2 flex flex-col gap-6 bg-white p-6 rounded-2xl shadow-xl">
+                <!-- 单字 -->
+                <div>
+                    <h2 class="text-xl font-bold mb-3 text-amber-800">单字</h2>
+                    <div id="single-words" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <!-- 二字词语 -->
+                <div>
+                    <h2 class="text-xl font-bold mb-3 text-amber-800">二字词语</h2>
+                    <div id="two-words" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <!-- 三字词语 -->
+                <div>
+                    <h2 class="text-xl font-bold mb-3 text-amber-800">三字词语</h2>
+                    <div id="three-words" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <!-- 四字词语 -->
+                <div>
+                    <h2 class="text-xl font-bold mb-3 text-amber-800">四字词语</h2>
+                    <div id="four-words" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+
+            <!-- 右侧：诗句创作区 -->
+            <div class="md:w-1/2 flex flex-col gap-6 bg-white p-6 rounded-2xl shadow-xl">
+                <!-- 诗名创作 -->
+                <div class="flex flex-col items-center mb-4">
+                    <label for="poem-title" class="text-xl font-bold text-amber-900 mb-2">诗名</label>
+                    <input type="text" id="poem-title" class="text-center text-lg font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 w-full max-w-sm focus:outline-none focus:border-amber-400" placeholder="点击这里输入诗名">
+                </div>
+
+                <!-- 诗体选择 -->
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-bold text-amber-900 mb-2">选择诗体</h2>
+                    <div class="flex flex-wrap justify-center gap-2 sm:gap-4">
+                        <button onclick="selectFormat('五言')" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 transition-colors">五言</button>
+                        <button onclick="selectFormat('七言')" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 transition-colors">七言</button>
+                        <button onclick="selectFormat('江城子')" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 transition-colors">江城子</button>
+                        <button onclick="selectFormat('西江月')" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 transition-colors">西江月</button>
+                    </div>
+                </div>
+
+                <h2 class="text-xl font-bold text-amber-900">我的诗句</h2>
+                <!-- 诗句显示区 -->
+                <div id="poem-area" class="bg-amber-50 border border-amber-200 rounded-lg p-4 poem-display text-lg text-amber-800">
+                    <p class="poem-placeholder text-center text-gray-500">静待佳句，一字一言</p>
+                </div>
+
+                <!-- 标点和操作按钮 -->
+                <div class="flex flex-wrap justify-center gap-2 sm:gap-4 mb-4">
+                    <button onclick="deleteLast()" class="flex-1 min-w-[80px] px-4 py-2 bg-rose-600 text-white font-semibold rounded-lg shadow-md hover:bg-rose-700 transition-colors">删除</button>
+                    <button onclick="clearPoem()" class="flex-1 min-w-[80px] px-4 py-2 bg-amber-700 text-white font-semibold rounded-lg shadow-md hover:bg-amber-800 transition-colors">清空</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示框 -->
+    <div id="message-box" class="message-box bg-gray-900 text-white px-4 py-2 rounded-lg text-sm shadow-lg"></div>
+
+    <script>
+        // 词语数据
+        const words = {
+            single: ["春", "夏", "秋", "冬", "山", "水", "风", "月", "日", "星", "雨", "雪", "花", "草", "树", "竹", "云", "霞", "光", "影", "梦", "诗", "酒", "茶", "心", "情", "愁", "思", "意", "人", "世", "间", "年", "岁", "时", "空"],
+            two: ["青山", "绿水", "清风", "明月", "晓风", "残月", "落日", "孤烟", "长河", "大漠", "江雪", "梅花", "竹影", "松涛", "飞鸟", "远山", "古寺", "故人", "红尘", "人生", "岁月", "往事", "相思", "离愁", "夜雨", "晨光", "微风", "细雨", "柳岸", "渔舟", "归舟", "寒鸦", "夕阳", "白云", "幽径", "石阶", "高楼", "小桥", "流水", "落花", "听风", "闻香", "看雪", "问月", "独酌", "醉卧", "闲愁", "轻狂"],
+            three: ["春风拂", "细雨湿", "明月照", "落日沉", "江上行", "山中客", "风雪夜", "花影动", "竹林深", "梦中人", "故乡情", "少年游", "白发翁", "一壶酒", "一杯茶", "半生缘", "三千尺", "九重天", "孤雁飞", "独钓客", "月下影", "风入松", "水云间", "天涯路", "相思曲", "一叶舟", "无边落", "万里行", "千秋月"],
+            four: ["青山依旧", "流水无声", "风华正茂", "岁月如歌", "世事如棋", "万家灯火", "烟雨江南", "长夜漫漫", "春风十里", "一叶扁舟", "千山暮雪", "孤帆远影", "白云苍狗", "物是人非", "心事重重", "举杯邀月", "对酒当歌", "天涯咫尺", "相逢一笑", "往事随风", "此情可待", "人间烟火", "高山流水", "海阔天空", "大梦一场", "人生几何", "愁绪万千", "夜色阑珊", "花开花落", "朝夕相处", "浮生若梦", "旧时月色"]
+        };
+
+        const poemArea = document.getElementById('poem-area');
+        const messageBox = document.getElementById('message-box');
+
+        let poemStructure = []; // 存储诗歌结构的二维数组，如 [[5], [5], [5], [5]]
+        let currentLine = 0;
+        let currentChar = 0;
+
+        // 诗体格式定义
+        const poemFormats = {
+            '五言': [5, 5, 5, 5],
+            '七言': [7, 7, 7, 7],
+            '江城子': [7, 6, 7, 6, 7, 6, 6, 7],
+            '西江月': [7, 7, 7, 6, 7, 7, 7, 6]
+        };
+
+        // 渲染词语按钮
+        function renderWords() {
+            for (const key in words) {
+                const container = document.getElementById(`${key}-words`);
+                if (container) {
+                    words[key].forEach(word => {
+                        const button = document.createElement('button');
+                        button.textContent = word;
+                        button.className = "word-card px-3 py-1 bg-amber-100 rounded-md shadow-md hover:bg-amber-200 transition-colors";
+                        button.onclick = () => addWord(word);
+                        container.appendChild(button);
+                    });
+                }
+            }
+        }
+
+        // 选择诗体格式
+        function selectFormat(formatName) {
+            const format = poemFormats[formatName];
+            if (!format) {
+                showMessage("选择的诗体格式无效！");
+                return;
+            }
+
+            poemStructure = format.map(len => new Array(len).fill(''));
+            currentLine = 0;
+            currentChar = 0;
+            renderPoemBoxes();
+        }
+
+        // 渲染诗歌虚线框
+        function renderPoemBoxes() {
+            poemArea.innerHTML = '';
+            poemArea.style.display = 'block';
+            poemStructure.forEach((line, lineIndex) => {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'flex flex-wrap justify-center sm:justify-start';
+                line.forEach((char, charIndex) => {
+                    const box = document.createElement('span');
+                    box.className = `word-box ${char ? 'filled' : ''}`;
+                    box.textContent = char;
+                    if (lineIndex === currentLine && charIndex === currentChar) {
+                        box.classList.add('active');
+                    }
+                    lineDiv.appendChild(box);
+                });
+                poemArea.appendChild(lineDiv);
+            });
+        }
+
+        // 找到下一个可以填入的虚线框
+        function findNextEmptyBox() {
+            for (let i = currentLine; i < poemStructure.length; i++) {
+                for (let j = 0; j < poemStructure[i].length; j++) {
+                    if (i === currentLine && j < currentChar) continue;
+                    if (!poemStructure[i][j]) {
+                        return { line: i, char: j };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 找到上一个已填入的虚线框
+        function findLastFilledBox() {
+            for (let i = poemStructure.length - 1; i >= 0; i--) {
+                for (let j = poemStructure[i].length - 1; j >= 0; j--) {
+                    if (poemStructure[i][j]) {
+                        return { line: i, char: j };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 添加词语到诗句
+        function addWord(word) {
+            if (poemStructure.length === 0) {
+                showMessage("请先选择一个诗体格式！");
+                return;
+            }
+
+            const filled = findNextEmptyBox();
+
+            if (!filled) {
+                showMessage("诗歌已写满！");
+                return;
+            }
+
+            // 循环填入词语的每个字
+            for (let i = 0; i < word.length; i++) {
+                const nextPos = findNextEmptyBox();
+                if (!nextPos) {
+                    showMessage("诗歌已写满！");
+                    break;
+                }
+                poemStructure[nextPos.line][nextPos.char] = word[i];
+                currentLine = nextPos.line;
+                currentChar = nextPos.char + 1;
+            }
+
+            renderPoemBoxes();
+        }
+        
+        // 删除最后一个字
+        function deleteLast() {
+            if (poemStructure.length === 0) {
+                return;
+            }
+
+            const lastFilled = findLastFilledBox();
+            
+            if (lastFilled) {
+                poemStructure[lastFilled.line][lastFilled.char] = '';
+                currentLine = lastFilled.line;
+                currentChar = lastFilled.char;
+                renderPoemBoxes();
+            }
+        }
+
+        // 清空诗句
+        function clearPoem() {
+            if (poemStructure.length === 0) {
+                return;
+            }
+            poemStructure = poemStructure.map(line => line.map(() => ''));
+            currentLine = 0;
+            currentChar = 0;
+            renderPoemBoxes();
+        }
+
+        // 显示消息提示
+        function showMessage(message) {
+            messageBox.textContent = message;
+            messageBox.classList.add('show');
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 2000);
+        }
+
+        // 初始化
+        window.onload = function() {
+            renderWords();
+        };
+    </script>
+</body>
+</html>
