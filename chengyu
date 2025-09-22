@@ -1,1 +1,210 @@
-、
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji 成语猜猜乐</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chosen Palette: Warm Parchment -->
+    <!-- Application Structure Plan: 该应用被设计为一个互动式的猜谜游戏。与枯燥的列表不同，它采用了一个响应式的卡片网格布局。每一张卡片代表一个成语谜题，鼓励用户逐一探索和互动。核心交互是卡片的“翻转”效果，用户点击卡片即可揭晓答案，这种方式既直观又有趣。页面顶部还设置了一个“全部显示/隐藏”的按钮，方便用户在学习和测验模式之间切换。这种以游戏为中心的设计结构，旨在将一份静态的文本内容转化为一个充满参与感的动态体验，极大地提升了内容的易消费性和娱乐性。 -->
+    <!-- Visualization & Content Choices: 报告信息（Emoji成语列表）-> 目标（创建互动猜谜游戏）-> 呈现方式（带翻转效果的响应式卡片网格）-> 交互（单击卡片翻转以显示答案，全局按钮可切换所有卡片的显示状态）-> 理由（卡片网格比长列表更具视觉吸引力和互动性；翻转动画为揭晓答案增添了趣味性和惊喜感，提升了用户参与度）-> 技术实现（使用HTML和Tailwind CSS构建布局，通过原生JavaScript控制交互逻辑和DOM操作）。 -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            background-color: #FDF6E3; /* Warm Parchment background */
+        }
+        .card {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .card.is-flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front,
+        .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.75rem;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+    <div class="container mx-auto px-4 py-8 md:py-12">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-amber-900">Emoji 成语猜猜乐</h1>
+            <p class="mt-4 text-lg text-amber-800 max-w-2xl mx-auto">
+                欢迎来到成语挑战！点击下方的 Emoji 卡片，猜猜它代表哪个成语。再次点击可以翻回去。祝你好运！
+            </p>
+            <button id="toggle-all-btn" class="mt-6 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-6 rounded-full transition-colors duration-300 shadow-md">
+                显示所有答案
+            </button>
+        </header>
+
+        <main id="idiom-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+        </main>
+
+    </div>
+
+    <script>
+        const idioms = [
+            { puzzle: "🐻🈶️🍊🎋", answer: "胸有成竹" },
+            { puzzle: "🔥🌲🎵🎆", answer: "火树银花" },
+            { puzzle: "🌂🦴🐱🦌", answer: "三顾茅庐" },
+            { puzzle: "🍬💪🚧🚗", answer: "螳臂当车" },
+            { puzzle: "🍏♣️🎋🐎", answer: "青梅竹马" },
+            { puzzle: "🍃🚌👌🐲", answer: "叶公好龙" },
+            { puzzle: "🐑🚶🐯👄", answer: "羊入虎口" },
+            { puzzle: "🔪⛰️🔥🌊", answer: "刀山火海" },
+            { puzzle: "🎒🪞🍐🍌", answer: "背井离乡" },
+            { puzzle: "🍬🍬🪡🪡", answer: "堂堂正正" },
+            { puzzle: "🖐️🤐🚶🫙", answer: "守口如瓶" },
+            { puzzle: "⬅️🤔➡️🤔", answer: "左思右想" },
+            { puzzle: "🍧🍧🖐️🪦", answer: "绵绵不绝" },
+            { puzzle: "➖🀄️📖🎺", answer: "横七竖八" },
+            { puzzle: "👋🥬☺️🏊", answer: "大材小用" },
+            { puzzle: "🪞🧎‍♀️🎫🐘", answer: "金桂飘香" },
+            { puzzle: "🐦👄🤤💡", answer: "鸟语蝉鸣" },
+            { puzzle: "👄🧱🐍🧍", answer: "唇枪舌战" },
+            { puzzle: "👣👣😲❤️", answer: "步步惊心" },
+            { puzzle: "🧊🤲🧊🦶", answer: "动手动脚" },
+            { puzzle: "🍍👂🏻❌🐳", answer: "博而不精" },
+            { puzzle: "❤️🙅🏻‍♂️🔟🤲", answer: "爱不释手" },
+            { puzzle: "⚪️👩🏻👞👵🏻", answer: "白头偕老" },
+            { puzzle: "🐟👴🏻🍹💪🏻", answer: "渔翁得利" },
+            { puzzle: "1️⃣💉🚀☃️", answer: "一针见血" },
+            { puzzle: "👆🏻🍰🎈🐏", answer: "趾高气扬" },
+            { puzzle: "🐴👦🏻🍎💩", answer: "马革裹尸" },
+            { puzzle: "🌪️🌧️👰🏻👰🏻", answer: "风雨凄凄" },
+            { puzzle: "🚶🏻🐴👀🌸", answer: "走马观花" },
+            { puzzle: "1️⃣😡😮‍💨🍊", answer: "一气呵成" },
+            { puzzle: "☁️☁️🀄🎂", answer: "芸芸众生" },
+            { puzzle: "👄👄📣📣", answer: "口口声声" },
+            { puzzle: "🔭👀🌽🚣🏻", answer: "望眼欲穿" },
+            { puzzle: "✍🏻️🤲🍪✂️", answer: "携手并肩" },
+            { puzzle: "🤲🏻🤌🏻1️⃣👆🏻", answer: "首屈一指" },
+            { puzzle: "♨️🐔🆙🕺", answer: "闻鸡起舞" },
+            { puzzle: "🌕🌕🌑🌑", answer: "日日夜夜" },
+            { puzzle: "♨️♨️🌞👆🏻", answer: "蒸蒸日上" },
+            { puzzle: "👆🏻👇🏻1️⃣❤️", answer: "上下一心" },
+            { puzzle: "😍😡😮‍💨😀", answer: "喜怒哀乐" },
+            { puzzle: "👅🐴🚶🏻🈳", answer: "天马行空" },
+            { puzzle: "😭🐮🍺🍜", answer: "泪流满面" },
+            { puzzle: "👦🏻👼🏻🚌💩", answer: "人神共愤" },
+            { puzzle: "🎈🐯🤵🏻👇🏻", answer: "骑虎难下" },
+            { puzzle: "🤲🐷🧳🐰", answer: "守株待兔" },
+            { puzzle: "🧑‍🦯🤵🏻🤲🐘", answer: "盲人摸象" },
+            { puzzle: "☁️▪️🌑🎹", answer: "天方夜谭" },
+            { puzzle: "🌹👀📭❤️", answer: "眉目传情" },
+            { puzzle: "🎈👄👨🏻👅", answer: "七嘴八舌" },
+            { puzzle: "🐉🍍🍊💩", answer: "龙凤呈祥" },
+            { puzzle: "🍐🌸💰🌧️", answer: "梨花带雨" },
+            { puzzle: "🐉🐴⭐👼🏻", answer: "龙马精神" },
+            { puzzle: "👩🏻💰🐔🐔", answer: "人才济济" },
+            { puzzle: "🍚👊🏻➕💅🏻", answer: "十全十美" },
+            { puzzle: "🍜🈚👩🏻😍", answer: "面无人色" },
+            { puzzle: "🏡🏡🏠🏠", answer: "家家户户" },
+            { puzzle: "🌸👌🏻🌙🌕", answer: "花好月圆" },
+            { puzzle: "👣🐰👌🏻😭", answer: "狡兔三窟" },
+            { puzzle: "💊👄👵🏻❤️", answer: "苦口婆心" },
+            { puzzle: "🦊🏠🐯💢", answer: "狐假虎威" },
+            { puzzle: "👄🐝👨🏻🚀", answer: "口蜜腹剑" },
+            { puzzle: "1️⃣🚀⏰❤️", answer: "一见钟情" },
+            { puzzle: "🔔🔔⭐⭐", answer: "零零星星" },
+            { puzzle: "1️⃣🔫✌🏻🉐", answer: "一举两得" },
+            { puzzle: "⭐🍍♟️🖐🏻", answer: "星罗棋布" },
+            { puzzle: "👄🍅❤️🙅🏻‍♂️", answer: "口是心非" },
+            { puzzle: "🔑🚪👀⛰️", answer: "开门见山" },
+            { puzzle: "👗🐉🙅🏻‍♂️🤲", answer: "群龙无首" },
+            { puzzle: "🕓🌊☎🏠", answer: "四海为家" },
+            { puzzle: "🔔🐺🈵👀", answer: "琳琅满目" },
+            { puzzle: "❤️❤️🐘🥇", answer: "心心相印" },
+            { puzzle: "👻👻👻👻", answer: "魑魅魍魉" },
+            { puzzle: "🌊😭🪦🏀", answer: "海枯石烂" },
+            { puzzle: "🐔⭐🏌️💡", answer: "吉星高照" },
+            { puzzle: "👩🏻🐏🐴⛵", answer: "人仰马翻" },
+            { puzzle: "🤵🏻🤵🏻🤲🛣", answer: "头头是道" },
+            { puzzle: "🍸🍸🐢👔", answer: "九九归一" },
+            { puzzle: "🚑🎀🚑💪🏻", answer: "再接再厉" },
+            { puzzle: "💢🔥🀄🔥", answer: "怒火中烧" },
+            { puzzle: "🍻🥚🐘📸", answer: "肝胆相照" },
+            { puzzle: "1️⃣👦🏻💰🥇", answer: "一字千金" },
+            { puzzle: "🐶🐔🪂💪🏻", answer: "狗急跳墙" },
+            { puzzle: "🌞👩🏻‍🎓🚿⛰️", answer: "日薄西山" },
+            { puzzle: "1️⃣💉🟡🧊", answer: "一枕黄粱" },
+            { puzzle: "☀️🏔🍽🔟", answer: "泰山磐石" },
+            { puzzle: "🐏🐏🉐️1️⃣", answer: "洋洋得意" },
+            { puzzle: "👨👩👴👶", answer: "男女老少" },
+            { puzzle: "🌸🌸👴👦", answer: "花花公子" },
+            { puzzle: "💅🀄🙅👣", answer: "美中不足" },
+            { puzzle: "👕🚀⏰💝", answer: "一见钟情" },
+            { puzzle: "💁🍜🍑🌸", answer: "人面桃花" },
+            { puzzle: "🌞🌞🌃🌃", answer: "日日夜夜" },
+            { puzzle: "❤️🤔🍅🍊", answer: "心想事成" },
+            { puzzle: "😍⬆🌹🔥", answer: "喜上眉梢" },
+            { puzzle: "🖐⬆✨🐷", answer: "掌上明珠" },
+            { puzzle: "👱👱📺🛣", answer: "头头是道" },
+            { puzzle: "💗💗🐘🏅", answer: "欣欣向荣" },
+            { puzzle: "🚶🐎👑🌸", answer: "走马观花" },
+            { puzzle: "👗🐲🈚🖐", answer: "群龙无首" }
+        ];
+
+        const grid = document.getElementById('idiom-grid');
+        const toggleBtn = document.getElementById('toggle-all-btn');
+        let allVisible = false;
+
+        idioms.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card h-28 md:h-32 bg-transparent cursor-pointer group';
+            
+            card.innerHTML = `
+                <div class="card-inner shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+                    <div class="card-front bg-white p-4 text-3xl md:text-4xl">
+                        ${item.puzzle}
+                    </div>
+                    <div class="card-back bg-amber-500 p-2 text-white text-2xl md:text-3xl font-semibold">
+                        ${item.answer}
+                    </div>
+                </div>
+            `;
+
+            card.addEventListener('click', () => {
+                card.classList.toggle('is-flipped');
+            });
+
+            grid.appendChild(card);
+        });
+
+        toggleBtn.addEventListener('click', () => {
+            allVisible = !allVisible;
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                if (allVisible) {
+                    card.classList.add('is-flipped');
+                } else {
+                    card.classList.remove('is-flipped');
+                }
+            });
+            toggleBtn.textContent = allVisible ? '隐藏所有答案' : '显示所有答案';
+        });
+
+    </script>
+</body>
+</html>
